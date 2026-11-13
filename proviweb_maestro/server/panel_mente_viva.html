@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GHOLGO · Mente Viva en Tiempo Real</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#02040a;color:#e8eefd;
+    font:14px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif}
+  #c{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .hud{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;
+    justify-content:space-between;padding:24px}
+  header{display:flex;align-items:center;gap:14px;pointer-events:auto}
+  h1{font-size:20px;letter-spacing:3px;font-weight:700;white-space:nowrap;
+    text-shadow:0 0 30px rgba(99,102,241,.6),0 0 60px rgba(16,185,129,.25)}
+  .pill{padding:5px 14px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,.12);
+    background:rgba(10,15,35,.6);backdrop-filter:blur(8px);white-space:nowrap;
+    transition:all .4s;pointer-events:auto}
+  .pill.vivo{color:#a5f3fc;border-color:rgba(167,243,252,.6);
+    box-shadow:0 0 20px rgba(167,243,252,.35);animation:lateoVivo 2.5s infinite alternate}
+  .pill.antigravity{color:#f3e8ff;border-color:rgba(192,132,252,.85);
+    background:rgba(35,15,55,.65);box-shadow:0 0 25px rgba(192,132,252,.5);animation:lateoAgy 2s infinite alternate}
+  .pill.silencio{color:#fca5a5;border-color:rgba(252,165,165,.6);
+    box-shadow:0 0 20px rgba(252,165,165,.35)}
+  @keyframes lateoVivo{from{opacity:.7;box-shadow:0 0 15px rgba(167,243,252,.25)}
+    to{opacity:1;box-shadow:0 0 25px rgba(167,243,252,.55)}}
+  @keyframes lateoAgy{from{opacity:.8;box-shadow:0 0 15px rgba(192,132,252,.35)}
+    to{opacity:1;box-shadow:0 0 35px rgba(192,132,252,.75)}}
+  .reloj{font-variant-numeric:tabular-nums;color:#64748b;margin-left:auto;font-size:12px}
+  .nav{margin-left:20px;display:flex;gap:12px;pointer-events:auto}
+  .nav a{color:#94a3b8;text-decoration:none;font-size:12px}
+  .nav a:hover{color:#a5f3fc}
+  .cards{position:fixed;top:90px;right:24px;width:300px;display:flex;flex-direction:column;
+    gap:12px;max-height:calc(100vh - 160px);overflow-y:auto;pointer-events:auto}
+  .card{background:rgba(10,15,35,.55);border:1px solid rgba(255,255,255,.08);
+    border-radius:14px;padding:14px 16px;backdrop-filter:blur(10px)}
+  .card h2{font-size:10px;letter-spacing:2.5px;color:#94a3b8;margin-bottom:9px;
+    text-transform:uppercase;font-weight:700}
+  .row{display:flex;justify-content:space-between;gap:10px;font-size:12px;margin:3px 0}
+  .row b{font-weight:600;color:#e2e8f0;font-variant-numeric:tabular-nums}
+  .chip{display:inline-block;font-size:9.5px;padding:3px 10px;border-radius:999px;
+    border:1px solid rgba(255,255,255,.1);color:#94a3b8;margin:2px 4px 2px 0}
+  .chip.activa{color:#a5f3fc;border-color:rgba(167,243,252,.5);
+    box-shadow:0 0 12px rgba(167,243,252,.25)}
+  .chip.candidata{color:#fde047;border-color:rgba(253,224,71,.4)}
+  .barra{height:6px;border-radius:4px;background:rgba(255,255,255,.06);margin:6px 0 3px;
+    overflow:hidden}
+  .barra>i{display:block;height:100%;border-radius:4px;width:0;
+    background:linear-gradient(90deg,#818cf8,#22d3ee);transition:width .6s}
+  .reflexion{margin-top:10px;padding:10px 12px;border:1px solid rgba(167,243,252,.2);
+    border-radius:10px;background:rgba(167,243,252,.05);font-size:11px;
+    line-height:1.5;color:#e2e8f0;font-style:italic}
+  .reflexion .autor{display:block;margin-top:6px;font-size:9px;color:#67e8f9;font-weight:700}
+  footer{padding:12px 24px;font-size:10px;color:#64748b;letter-spacing:1.4px;
+    display:flex;justify-content:space-between;gap:10px;pointer-events:auto}
+  .leyenda{display:flex;gap:14px;align-items:center;pointer-events:auto}
+  .leyenda .item{display:flex;align-items:center;gap:6px;font-size:10px;color:#64748b}
+  .leyenda .punto{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .punto.nodo{background:#818cf8;box-shadow:0 0 10px #818cf8}
+  .punto.particula{background:#22d3ee;box-shadow:0 0 8px #22d3ee}
+  .punto.arista{background:#94a3b8}
+  @media(max-width:900px){.cards{display:none}.cards{width:100%;position:relative;top:auto;
+    right:auto;max-height:none}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud">
+  <header>
+    <h1>GHOLGO · MENTE VIVA</h1>
+    <span id="pill" class="pill silencio">conectando…</span>
+    <span id="reloj"></span>
+    <div class="nav" id="gholgoSovereignNavViva" hidden style="display:none">
+      <a href="/chat">chat ↗</a>
+      <a href="/panel/cerebro-3d" style="color:#a5f3fc;font-weight:700;text-shadow:0 0 10px rgba(165,243,252,.5);">🧠 cerebro 3d ↗</a>
+      <a href="/panel/mente-maestro" style="color:#c084fc;">mente maestra ↗</a>
+      <a href="/brain">cerebro ↗</a>
+      <a href="/panel/neural">red neuronal ↗</a>
+    </div>
+  </header>
+  <div class="cards">
+    <div class="card" id="cardAgy" style="display:none; border:1px solid rgba(192,132,252,0.45); background:rgba(30,12,45,0.72); box-shadow:0 0 24px rgba(192,132,252,0.25);">
+      <h2 style="color:#c084fc;">🌌 Tutor Antigravity 24/7</h2>
+      <div class="row"><span>sesión</span><b id="agyRondas" style="color:#c084fc;">Ronda 0 · 24/7</b></div>
+      <div class="row"><span>tema actual</span><b id="agyTema" style="color:#f3e8ff;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">—</b></div>
+      <div class="row"><span>pilar</span><b id="agyPilar" style="color:#e9d5ff;">—</b></div>
+      <div class="row"><span>maestría</span><b id="agyScore" style="color:#34d399;">—</b></div>
+      <div class="barra"><i id="agyProgreso" style="background:linear-gradient(90deg,#8b5cf6,#c084fc,#fbbf24)"></i></div>
+    </div>
+    <div class="card">
+      <h2>mente</h2>
+      <div class="row"><span>estado</span><b id="mEstado">—</b></div>
+      <div class="row"><span>alumnos</span><b id="mAlumnos">—</b></div>
+      <div class="row"><span>total interacc.</span><b id="mInteracc">—</b></div>
+    </div>
+    <div class="card">
+      <h2>alumno actual</h2>
+      <div class="row"><span>nombre</span><b id="aNombre">—</b></div>
+      <div class="row"><span>nivel</span><b id="aNivel">—</b></div>
+      <div class="row"><span>estado ánimo</span><b id="aAnimo">—</b></div>
+      <div class="row"><span>días sin ses.</span><b id="aDias">—</b></div>
+    </div>
+    <div class="card">
+      <h2>último tema</h2>
+      <div id="aUltimo" style="font-size:11px;color:#94a3b8">—</div>
+      <div class="row"><span>próxima</span><b id="aProx">—</b></div>
+    </div>
+    <div class="card">
+      <h2>temas trabajados</h2>
+      <div id="temasLista" style="font-size:10px;color:#94a3b8;line-height:1.6">—</div>
+    </div>
+    <div class="card">
+      <h2>reflexión diaria</h2>
+      <div class="reflexion" id="reflexion">Sin reflexión registrada hoy.</div>
+    </div>
+  </div>
+  <footer>
+    <div class="leyenda">
+      <div class="item" id="leyendaAgy" style="display:none;"><span class="punto" style="background:#c084fc;box-shadow:0 0 10px #c084fc"></span> tutor antigravity</div>
+      <div class="item"><span class="punto nodo"></span> tema del alumno</div>
+      <div class="item"><span class="punto partícula"></span> actividad fluyendo</div>
+      <div class="item"><span class="punto arista"></span> conexión del grafo</div>
+    </div>
+    <span id="pie">datos en tiempo real · sse cada 2 s · gholgo mente viva</span>
+    <span id="pie2"></span>
+  </footer>
+</div>
+<script>
+(function(){
+"use strict";
+var canvas = document.getElementById("c");
+var ctx = canvas.getContext("2d");
+var W, H, cx, cy;
+
+function resize(){
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  cx = W * 0.5;
+  cy = H * 0.55;
+}
+window.addEventListener("resize", resize);
+resize();
+
+// ---------- estado ----------
+var S = {
+  conectado:false,
+  actividad:{estado:"en_espera",detalle:""},
+  general:{total_alumnos:0,temas_grafo:0,ts:0},
+  alumnos:[],
+  reflexiones:[],
+  grafo:{nodos:[],aristas:[]},
+  temaActivo:null,
+  nivel:1,
+  animo:"neutral",
+  proximaLeccion:null,
+  temasTrabajados:[],
+  ultimaActualizacion:0
+};
+
+// ---------- fondo: estrellas ----------
+var estrellas = [];
+for(var i=0;i<160;i++){
+  estrellas.push({
+    x:Math.random()*W, y:Math.random()*H,
+    r:Math.random()*1.4,
+    a:Math.random(),
+    da:(Math.random()*0.004)+0.001
+  });
+}
+function dibujarEstrellas(){
+  for(var i=0;i<estrellas.length;i++){
+    var e = estrellas[i];
+    e.a += e.da;
+    if(e.a>1||e.a<0)e.da*=-1;
+    ctx.fillStyle = "rgba(232,238,253,"+e.a+")";
+    ctx.beginPath(); ctx.arc(e.x,e.y,e.r,0,6.2832); ctx.fill();
+  }
+}
+
+// ---------- grafo ----------
+var nodos = [];
+var aristas = [];
+var particulas = [];
+var antigravity = { active: false, ronda: 0, last_topic: "", current_pillar: "", mastery_score: 0, mastery_total: 0 };
+var ondasCosmicas = [];
+var mouse = {x:-99999,y:-99999};
+window.addEventListener("mousemove",function(e){mouse.x=e.clientX;mouse.y=e.clientY;});
+
+function construirGrafo(g){
+  nodos = []; aristas = [];
+  if(!g || !g.nodos) return;
+  var radios = W < 900 ? Math.min(W,H)*0.34 : Math.min(W,H)*0.42;
+  var paso = (2*Math.PI)/g.nodos.length;
+  var idx = {};
+  for(var i=0;i<g.nodos.length;i++){
+    var n = g.nodos[i];
+    var ang = i*paso - Math.PI/2;
+    var r = radios;
+    // pequeña variación por nivel para que no quede perfecto
+    r += (n.nivel||1)*12;
+    nodos.push({
+      id:n.id, label:n.label, nivel:n.nivel||1, desc:n.descripcion||"",
+      x:cx+Math.cos(ang)*r, y:cy+Math.sin(ang)*r,
+      vx:0, vy:0, fx:0, fy:0,
+      activa:false, brillo:0, pulso:0
+    });
+    idx[n.id]=nodos[nodos.length-1];
+  }
+  if(g.aristas){
+    for(var j=0;j<g.aristas.length;j++){
+      var a = g.aristas[j];
+      var o = idx[a.origen], d = idx[a.destino];
+      if(o&&d) aristas.push({o:o,d:d,activa:false,brillo:0});
+    }
+  }
+}
+
+function activarTema(id){
+  for(var i=0;i<nodos.length;i++){
+    if(nodos[i].id===id){
+      nodos[i].activa=true; nodos[i].brillo=1; nodos[i].pulso=0;
+    } else {
+      nodos[i].activa=false;
+      nodos[i].brillo*=0.85;
+    }
+  }
+  for(var j=0;j<aristas.length;j++){
+    var a=aristas[j];
+    a.activa = (a.o.id===id || a.d.id===id);
+    a.brillo = a.activa?1:0;
+  }
+}
+
+function crearParticulas(){
+  // genera partículas que viajan por aristas activas
+  for(var j=0;j<aristas.length;j++){
+    var a = aristas[j];
+    if(!a.activa) continue;
+    if(Math.random()<0.18){
+      particulas.push({
+        x:a.o.x,y:a.o.y,tx:a.d.x,ty:a.d.y,
+        t:0, vida:60+Math.random()*40, color:"#a5f3fc",
+        tamaño:1.2+Math.random()*1.4
+      });
+    }
+  }
+}
+
+function actualizarFisica(){
+  // fuerzas simples de repulsión entre nodos y atracción al centro
+  var k = 0.0006;
+  for(var i=0;i<nodos.length;i++){
+    var n = nodos[i];
+    var dx = cx - n.x, dy = cy - n.y;
+    var d = Math.sqrt(dx*dx+dy*dy)||1;
+    var f = 0.015;
+    n.vx += (dx/d)*f; n.vy += (dy/d)*f;
+    // repulsión entre nodos cercanos
+    for(var j=i+1;j<nodos.length;j++){
+      var m = nodos[j];
+      var dx2 = n.x-m.x, dy2 = n.y-m.y;
+      var d2 = Math.sqrt(dx2*dx2+dy2*dy2)||1;
+      if(d2<150){
+        var rep = (150-d2)*0.0003;
+        n.vx -= (dx2/d2)*rep; n.vy -= (dy2/d2)*rep;
+        m.vx += (dx2/d2)*rep; m.vy += (dy2/d2)*rep;
+      }
+    }
+    n.vx*=0.92; n.vy*=0.92;
+    n.x+=n.vx; n.y+=n.vy;
+  }
+  // actualizar aristas endpoints (referencias vivas)
+  for(var j=0;j<aristas.length;j++){
+    var a=aristas[j];
+    // o y d ya son referencias a nodos, se actualizan solos
+  }
+}
+
+function actualizarParticulas(){
+  for(var i=particulas.length-1;i>=0;i--){
+    var p = particulas[i];
+    p.t += 1/p.vida;
+    if(p.t>=1){ particulas.splice(i,1); continue; }
+    // curva de bezier suave
+    var cp1x = p.x + (p.tx-p.x)*0.5 + (Math.random()-0.5)*40;
+    var cp1y = p.y + (p.ty-p.y)*0.5 + (Math.random()-0.5)*40;
+    var t = p.t;
+    p.x = (1-t)*(1-t)*p.x + 2*(1-t)*t*cp1x + t*t*p.tx;
+    p.y = (1-t)*(1-t)*p.y + 2*(1-t)*t*cp1y + t*t*p.ty;
+  }
+}
+
+function dibujarAristas(){
+  for(var j=0;j<aristas.length;j++){
+    var a = aristas[j];
+    var o = a.o, d = a.d;
+    var br = a.brillo;
+    if(br<=0.02) continue;
+    ctx.beginPath();
+    ctx.moveTo(o.x,o.y);
+    ctx.lineTo(d.x,d.y);
+    ctx.strokeStyle = "rgba(167,243,252,"+(0.12+0.35*br)+")";
+    ctx.lineWidth = 0.8 + 1.2*br;
+    ctx.stroke();
+    // brillo en la arista
+    if(br>0.5){
+      ctx.beginPath();
+      ctx.moveTo(o.x,o.y);
+      ctx.lineTo(d.x,d.y);
+      ctx.strokeStyle = "rgba(167,243,252,"+(0.15*br)+")";
+      ctx.lineWidth = 2 + 2*br;
+      ctx.stroke();
+    }
+  }
+}
+
+function dibujarNodos(){
+  for(var i=0;i<nodos.length;i++){
+    var n = nodos[i];
+    var br = n.brillo;
+    var pulso = 1 + 0.25*Math.sin(Date.now()/300 + n.pulso*10);
+    var r = 6 + (n.nivel||1)*2.5 + (br*8) + (n.activa?6:0);
+    // brillo exterior
+    if(br>0.2){
+      ctx.beginPath();
+      ctx.arc(n.x,n.y,r*1.6,0,6.2832);
+      ctx.fillStyle = "rgba(167,243,252,"+(0.15*br)+")";
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.arc(n.x,n.y,r,0,6.2832);
+    ctx.fillStyle = n.activa ? "#a5f3fc" : "rgba(148,163,184,"+(0.35+0.25*br)+")";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,"+(0.4+0.4*br)+")";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    // etiqueta
+    if(n.activa || br>0.5 || dist(mouse,n)<45){
+      ctx.fillStyle = "#e2e8f0";
+      ctx.font = "bold 11px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(n.label.replace(/_/g," "), n.x, n.y - r - 8);
+      ctx.font = "10px system-ui";
+      ctx.fillStyle = "#94a3b8";
+      ctx.fillText(n.desc, n.x, n.y + r + 14);
+    }
+  }
+}
+
+function dibujarParticulas(){
+  for(var i=0;i<particulas.length;i++){
+    var p = particulas[i];
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.tamaño,0,6.2832);
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = 1-p.t;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    // estela
+    ctx.beginPath();
+    ctx.moveTo(p.x,p.y);
+    ctx.lineTo(p.x-(p.tx-p.x)*0.08, p.y-(p.ty-p.y)*0.08);
+    ctx.strokeStyle = p.color;
+    ctx.globalAlpha = 0.35*(1-p.t);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function dist(a,b){ return Math.sqrt((a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y)); }
+
+function dibujarOndasCosmicas(){
+  for(var i = ondasCosmicas.length - 1; i >= 0; i--){
+    var o = ondasCosmicas[i];
+    o.r += (o.maxR - o.r) * 0.05 + 1.6;
+    o.alpha *= 0.96;
+    if(o.alpha < 0.02 || o.r >= o.maxR){
+      ondasCosmicas.splice(i, 1);
+      continue;
+    }
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, o.r, 0, 6.2832);
+    ctx.strokeStyle = "rgba(192,132,252," + o.alpha + ")";
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
+}
+
+function dibujarTutorAntigravity(){
+  if(!antigravity.active) return;
+  var ay = cy - (W < 900 ? Math.min(W,H)*0.36 : Math.min(W,H)*0.43);
+  var ax = cx;
+  var t = Date.now() * 0.003;
+  var r = 16 + 3 * Math.sin(t * 2);
+
+  // Halo cósmico exterior
+  var g = ctx.createRadialGradient(ax, ay, 2, ax, ay, r * 3.5);
+  g.addColorStop(0, "rgba(192,132,252,0.65)");
+  g.addColorStop(0.4, "rgba(168,85,247,0.3)");
+  g.addColorStop(1, "rgba(147,51,234,0)");
+  ctx.beginPath();
+  ctx.arc(ax, ay, r * 3.5, 0, 6.2832);
+  ctx.fillStyle = g;
+  ctx.fill();
+
+  // Rayos sutiles
+  ctx.save();
+  ctx.translate(ax, ay);
+  ctx.rotate(t * 0.2);
+  ctx.strokeStyle = "rgba(233,213,255,0.3)";
+  ctx.lineWidth = 1;
+  for(var ri = 0; ri < 8; ri++){
+    ctx.rotate(Math.PI / 4);
+    ctx.beginPath();
+    ctx.moveTo(0, r * 0.8);
+    ctx.lineTo(0, r * 2.2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Núcleo
+  ctx.beginPath();
+  ctx.arc(ax, ay, r, 0, 6.2832);
+  ctx.fillStyle = "#c084fc";
+  ctx.fill();
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Etiqueta del Tutor
+  ctx.fillStyle = "#f3e8ff";
+  ctx.font = "bold 12px system-ui";
+  ctx.textAlign = "center";
+  ctx.shadowColor = "#c084fc";
+  ctx.shadowBlur = 10;
+  ctx.fillText("🌌 TUTOR ANTIGRAVITY 24/7", ax, ay - r - 12);
+  ctx.shadowBlur = 0;
+  ctx.font = "10px system-ui";
+  ctx.fillStyle = "#e9d5ff";
+  var subtitulo = "Ronda " + (antigravity.ronda||1) + " · " + (antigravity.last_topic || "Entrenando Gholgo");
+  ctx.fillText(subtitulo, ax, ay + r + 16);
+}
+
+function crearParticulasAntigravity(){
+  if(!antigravity.active) return;
+  var ay = cy - (W < 900 ? Math.min(W,H)*0.36 : Math.min(W,H)*0.43);
+  var ax = cx;
+  if(Math.random() < 0.42){
+    var dest = null;
+    for(var i = 0; i < nodos.length; i++){
+      if(nodos[i].activa){ dest = nodos[i]; break; }
+    }
+    if(!dest && nodos.length){
+      dest = nodos[Math.floor(Math.random() * nodos.length)];
+    }
+    if(dest){
+      particulas.push({
+        x: ax, y: ay, tx: dest.x, ty: dest.y,
+        t: 0, vida: 45 + Math.random() * 25,
+        color: Math.random() < 0.7 ? "#c084fc" : "#fbbf24",
+        tamaño: 2.2 + Math.random() * 1.8
+      });
+    }
+  }
+}
+
+function dibujar(){
+  ctx.clearRect(0,0,W,H);
+  dibujarEstrellas();
+  dibujarOndasCosmicas();
+  actualizarFisica();
+  dibujarAristas();
+  dibujarNodos();
+  dibujarTutorAntigravity();
+  crearParticulas();
+  crearParticulasAntigravity();
+  actualizarParticulas();
+  dibujarParticulas();
+  requestAnimationFrame(dibujar);
+}
+
+// ---------- SSE ----------
+var es = null;
+function conectarSSE(){
+  if(es){ try{es.close();}catch(e){} }
+  es = new EventSource("/v1/gholgo/mente/stream");
+  es.onopen = function(){
+    S.conectado=true;
+    document.getElementById("pill").textContent = "mente viva en línea";
+    document.getElementById("pill").className = "pill vivo";
+  };
+  es.onerror = function(){
+    S.conectado=false;
+    document.getElementById("pill").textContent = "reconectando…";
+    document.getElementById("pill").className = "pill silencio";
+    setTimeout(conectarSSE, 3000);
+  };
+  function onData(e){
+    try{
+      var t = JSON.parse(e.data);
+      if (t.kind === "auto_system_reload") {
+        document.getElementById("pill").textContent = "mente actualizada";
+      }
+      mezclar(t);
+    }catch(err){ console.warn("mente sse parse", err); }
+  }
+  es.onmessage = onData;
+  es.addEventListener("mente", onData);
+  es.addEventListener("error", function(){
+    S.conectado=false;
+    document.getElementById("pill").className = "pill silencio";
+  });
+}
+
+function mezclar(t){
+  S.conectado=true;
+  S.actividad = t.actividad||S.actividad;
+  if(t.general){
+    S.general = t.general;
+    $("mAlumnos").textContent = t.general.total_alumnos||0;
+    $("mInteracc").textContent = "—";
+    $("mEstado").textContent = (t.actividad&&t.actividad.estado)||"viva";
+  }
+  if(t.grafo && !nodos.length){
+    construirGrafo(t.grafo);
+  }
+  if(t.antigravity){
+    var ag = t.antigravity;
+    var prevRonda = antigravity.ronda;
+    antigravity.active = !!ag.active;
+    antigravity.ronda = ag.ronda || 0;
+    antigravity.last_topic = ag.last_topic || "";
+    antigravity.current_pillar = ag.current_pillar || "";
+    antigravity.mastery_score = ag.mastery_score || 0;
+    antigravity.mastery_total = ag.mastery_total || 0;
+
+    var cAgy = $("cardAgy");
+    var lAgy = $("leyendaAgy");
+    if(antigravity.active){
+      if(cAgy) cAgy.style.display = "block";
+      if(lAgy) lAgy.style.display = "flex";
+      $("agyRondas").textContent = "Ronda " + antigravity.ronda + " · 24/7";
+      $("agyTema").textContent = antigravity.last_topic || "Conversación reflexiva";
+      $("agyPilar").textContent = antigravity.current_pillar || "maestría musical";
+      $("agyScore").textContent = antigravity.mastery_score + " / " + (antigravity.mastery_total || 0);
+      var pct = antigravity.mastery_total ? Math.round((antigravity.mastery_score / antigravity.mastery_total)*100) : 0;
+      var bProg = $("agyProgreso");
+      if(bProg) bProg.style.width = pct + "%";
+
+      if(prevRonda && prevRonda !== antigravity.ronda){
+        var ay0 = cy - (W < 900 ? Math.min(W,H)*0.36 : Math.min(W,H)*0.43);
+        ondasCosmicas.push({ x: cx, y: ay0, r: 15, maxR: Math.max(W,H)*0.65, alpha: 0.95 });
+      }
+    } else {
+      if(cAgy) cAgy.style.display = "none";
+      if(lAgy) lAgy.style.display = "none";
+    }
+  }
+  if(t.tema_activo!==undefined){
+    S.temaActivo = t.tema_activo;
+    activarTema(t.tema_activo);
+  }
+  if(t.nivel!==undefined){ S.nivel=t.nivel; $("aNivel").textContent = t.nivel; }
+  if(t.animo!==undefined){ S.animo=t.animo; $("aAnimo").textContent = t.animo; }
+  if(t.temas_trabajados){
+    S.temasTrabajados = t.temas_trabajados;
+    var lista = $("temasLista");
+    if(S.temasTrabajados.length){
+      lista.innerHTML = S.temasTrabajados.map(function(tt){
+        return "<span class='chip activa'>"+tt+"</span>";
+      }).join(" ");
+    } else { lista.textContent = "—"; }
+  }
+  if(t.proxima_leccion){
+    S.proximaLeccion = t.proxima_leccion;
+    $("aProx").textContent = t.proxima_leccion.tema||"—";
+  }
+  if(t.reflexion){
+    $("reflexion").textContent = t.reflexion.resumen||"Sin reflexión.";
+  }
+  if(t.alumno){
+    $("aNombre").textContent = t.alumno.nombre||"anonimo";
+    $("aDias").textContent = t.alumno.dias_desde_ultima_sesion||0;
+  }
+  S.ultimaActualizacion = Date.now();
+  var pill = document.getElementById("pill");
+  if(antigravity.active){
+    pill.textContent = "mente viva · tutor Antigravity activo (R" + antigravity.ronda + ")";
+    pill.className = "pill antigravity";
+  } else {
+    pill.textContent = "mente viva · " + ((t.actividad&&t.actividad.estado)||"viva");
+    pill.className = "pill vivo";
+  }
+}
+
+function cargarGrafo(){
+  fetch("/v1/gholgo/mente/grafo")
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if(d && d.grafo) construirGrafo(d.grafo); })
+    .catch(function(e){ console.warn("cargarGrafo", e); });
+}
+
+function $(id){return document.getElementById(id);}
+
+function tickReloj(){
+  var d = new Date();
+  function p(x){return (x<10?"0":"")+x;}
+  $("reloj").textContent = p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());
+  setTimeout(tickReloj,1000);
+}
+
+resize();
+dibujar();
+tickReloj();
+cargarGrafo();
+conectarSSE();
+})();
+</script>
+</body>
+</html>
